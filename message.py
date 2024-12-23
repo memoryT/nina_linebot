@@ -1,4 +1,4 @@
-from linebot.v3.messaging.models import *
+from linebot import *
 
 # Function Definitions
 def buttons_message1():
