@@ -2,11 +2,10 @@ from flask import Flask, request, abort
 from dotenv import load_dotenv
 import logging
 import os
-from linebot.v3 import WebhookHandler
-from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest, TextMessage
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
-from linebot.v3.webhooks.models import MemberJoinedEvent
+from linebot import WebhookHandler, LineBotApi
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent)
 from data import *
 from message import *
 from news import *
