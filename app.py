@@ -124,6 +124,6 @@ if __name__ == "__main__":
     bot = LineBotApp()
     port = int(os.getenv('PORT', 5000))
     bot.run(port=port)
-Last edited just now
+
 
 
