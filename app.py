@@ -1,116 +1,129 @@
 from flask import Flask, request, abort
+from linebot import WebhookHandler, LineBotApi
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent, ReplyMessageRequest
 from dotenv import load_dotenv
 import os
 import logging
-from linebot import WebhookHandler, LineBotApi
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent
-)
+from enum import Enum
+from typing import Optional, Dict, Any
 
-# 自定義模組（請確保這些模組存在且可正常運行）
-from data import *
-from message import *
-from news import *
-from Function import *
-from stock import *
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# 加載環境變數
-load_dotenv()
+class UserState(Enum):
+    WAITING_FOR_KEYWORDS = "waiting_for_keywords"
+    WAITING_FOR_STOCK = "waiting_for_stock"
+    WAITING_FOR_BACKTEST = "waiting_for_backtest"
 
-# 初始化 Flask 應用
-app = Flask(__name__)
+class LineBotApp:
+    def __init__(self):
+        load_dotenv()
+        self.validate_env()
+        self.app = Flask(__name__)
+        self.line_bot_api = LineBotApi(os.getenv('channel_access_token'))
+        self.handler = WebhookHandler(os.getenv('channel_secret'))
+        self.user_states: Dict[str, str] = {}
+        self.setup_routes()
+        self.setup_handlers()
 
-# 從環境變數中讀取 LINE Bot 資訊
-channel_access_token = os.getenv('channel_access_token')
-channel_secret = os.getenv('channel_secret')
-port = int(os.getenv('PORT', 5000))
+    def validate_env(self):
+        required_vars = ['channel_access_token', 'channel_secret']
+        missing = [var for var in required_vars if not os.getenv(var)]
+        if missing:
+            raise ValueError(f"Missing environment variables: {', '.join(missing)}")
 
-# 驗證環境變數是否正確
-if not channel_access_token or not channel_secret:
-    raise ValueError("環境變數 'channel_access_token' 或 'channel_secret' 未正確配置！")
+    def setup_routes(self):
+        self.app.route("/")(self.home)
+        self.app.route("/callback", methods=['POST'])(self.callback)
 
-# 初始化 LINE Bot API 和 WebhookHandler
-line_bot_api = LineBotApi(channel_access_token)
-handler = WebhookHandler(channel_secret)
+    def setup_handlers(self):
+        @self.handler.add(MessageEvent, message=TextMessage)
+        def handle_message(event):
+            self.process_message(event)
 
-# 使用者狀態記錄
-user_states = {}
+        @self.handler.add(MemberJoinedEvent)
+        def handle_member_joined(event):
+            self.welcome_member(event)
 
-# 基本路由
-@app.route("/")
-def home():
-    return "Webhook Running!"
+    def home(self):
+        return "Webhook Running!!!"
 
-@app.route("/callback", methods=['POST'])
-def callback():
-    signature = request.headers.get('X-Line-Signature')
-    body = request.get_data(as_text=True)
-    app.logger.info(f"Request body: {body}")
+    def callback(self):
+        signature = request.headers.get('X-Line-Signature')
+        body = request.get_data(as_text=True)
+        logger.info("Request body: %s", body)
 
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        app.logger.error("Invalid signature. 請檢查 channel_access_token 或 channel_secret 是否正確。")
-        abort(400)
+        try:
+            self.handler.handle(body, signature)
+        except InvalidSignatureError:
+            logger.error("Invalid signature")
+            abort(400)
 
-    return 'OK'
+        return 'OK'
 
-# 處理文字訊息事件
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_id = event.source.user_id
-    msg = event.message.text.strip()
-    logging.info(f"接收到來自使用者 {user_id} 的訊息: {msg}")
+    def process_message(self, event):
+        user_id = event.source.user_id
+        msg = event.message.text.strip()
+        logger.info("Message from %s: %s", user_id, msg)
 
-    try:
-        # 根據使用者狀態進行邏輯處理
-        if user_states.get(user_id) == 'waiting_for_keywords':
-            keywords = [keyword.strip() for keyword in msg.split(',') if keyword.strip()]
-            if keywords:
-                news_message = fetch_and_filter_news_message(keywords, limit=10)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=news_message))
+        try:
+            if user_id in self.user_states:
+                self.handle_state_based_input(event, msg, user_id)
             else:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請輸入有效的關鍵字（用逗號分隔）。"))
-            user_states[user_id] = None
-        elif user_states.get(user_id) == 'waiting_for_stock':
-            stock_message = create_stock_message(msg)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=stock_message))
-            user_states[user_id] = None
-        elif user_states.get(user_id) == 'waiting_for_backtest':
-            backtest_result = backtest(msg)
-            formatted_result = format_backtest_result(backtest_result)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=formatted_result))
-            user_states[user_id] = None
-        else:
-            # 預設回覆或功能選單
-            default_reply = TextSendMessage(text="請選擇功能或輸入指令（例如：新聞、回測等）。")
-            line_bot_api.reply_message(event.reply_token, default_reply)
-    except Exception as e:
-        logging.error(f"處理訊息時發生錯誤: {e}")
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="發生錯誤，請稍後再試。"))
+                self.handle_regular_message(event, msg, user_id)
+        except Exception as e:
+            logger.error("Error processing message: %s", str(e))
+            self.send_error_message(event.reply_token)
+            self.user_states.pop(user_id, None)
 
-# 處理新成員加入事件
-@handler.add(MemberJoinedEvent)
-def welcome(event):
-    try:
-        joined_user_id = event.joined.members[0].user_id
-        group_id = event.source.group_id
-        profile = line_bot_api.get_group_member_profile(group_id, joined_user_id)
-        welcome_message = f"歡迎 {profile.display_name} 加入！"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
-    except Exception as e:
-        logging.error(f"歡迎訊息處理失敗: {e}")
+    def handle_state_based_input(self, event, msg: str, user_id: str):
+        state = self.user_states.get(user_id)
+        handlers = {
+            UserState.WAITING_FOR_KEYWORDS.value: self.handle_keywords_input,
+            UserState.WAITING_FOR_STOCK.value: self.handle_stock_input,
+            UserState.WAITING_FOR_BACKTEST.value: self.handle_backtest_input
+        }
+        handler = handlers.get(state)
+        if handler:
+            handler(event, msg, user_id)
+        self.user_states.pop(user_id, None)
 
-# 格式化回測結果
-def format_backtest_result(result):
-    try:
-        content = str(result).replace("\\n", "\n")
-        return content
-    except Exception as e:
-        logging.error(f"格式化回測結果時發生錯誤: {e}")
-        return "回測結果格式化失敗。"
+    def handle_regular_message(self, event, msg: str, user_id: str):
+        commands = {
+            '財報': lambda: self.send_template(event.reply_token, buttons_message1()),
+            '基本股票功能': lambda: self.send_template(event.reply_token, buttons_message1()),
+            '換股': lambda: self.send_template(event.reply_token, buttons_message2()),
+            '目錄': lambda: self.send_carousel(event.reply_token),
+            '新聞': lambda: self.request_keywords(event.reply_token, user_id),
+            '查詢即時開盤價跟收盤價': lambda: self.request_stock_code(event.reply_token, user_id),
+            '回測': lambda: self.request_backtest_params(event.reply_token, user_id)
+        }
 
-# 啟動 Flask 應用
+        for cmd, handler in commands.items():
+            if cmd in msg:
+                handler()
+                return
+
+    def send_message(self, reply_token: str, text: str):
+        self.line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[TextMessage(text=text)]
+            )
+        )
+
+    def send_error_message(self, reply_token: str):
+        self.send_message(reply_token, "處理請求時發生錯誤，請稍後再試。")
+
+    def run(self, host='0.0.0.0', port=5000):
+        self.app.run(host=host, port=port)
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=port)
+    bot = LineBotApp()
+    port = int(os.getenv('PORT', 5000))
+    bot.run(port=port)
+Last edited just now
+
+
