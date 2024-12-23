@@ -1,8 +1,8 @@
-from linebot.models import TemplateMessage, CarouselTemplate, CarouselColumn, MessageAction, URIAction
+from linebot.models import TemplateSendMessage, CarouselTemplate, CarouselColumn, MessageAction, URIAction,ButtonsTemplate
 
 # Function Definitions
 def buttons_message1():
-    message = TemplateMessage(
+    message = TemplateSendMessage(
         alt_text='基本股票功能',
         template=ButtonsTemplate(
             text='請選擇以下功能',
@@ -21,7 +21,7 @@ def buttons_message1():
     return message
 
 def buttons_message2():
-    message = TemplateMessage(
+    message = TemplateSendMessage(
         alt_text='換股',
         template=ButtonsTemplate(
             text='請選擇以下功能',
@@ -42,7 +42,7 @@ def buttons_message2():
 
 
 def Carousel_Template():
-    carousel_template_message = TemplateMessage(
+    carousel_template_message = TemplateSendMessage(
         alt_text='Carousel template',
         template=CarouselTemplate(
             columns=[
@@ -88,5 +88,4 @@ def Carousel_Template():
         )
     )
     return carousel_template_message
-
     return carousel_template_message
