@@ -14,7 +14,8 @@ from typing import Dict
 from stock import *
 from csv import *
 import datetime as dt
-
+from data import *
+from news import *
 
 # Initialize Flask and logging
 app = Flask(__name__)
