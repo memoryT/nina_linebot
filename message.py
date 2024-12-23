@@ -2,23 +2,28 @@ from linebot.models import TemplateSendMessage, CarouselTemplate, CarouselColumn
 
 # Function Definitions
 def buttons_message1():
-    message = TemplateSendMessage(
-        alt_text='基本股票功能',
-        template=ButtonsTemplate(
-            text='請選擇以下功能',
-            actions=[
-                MessageAction(
-                    label="查詢股票資訊",
-                    text="查詢股票資訊"
-                ),
-                MessageAction(
-                    label="歷史股價查詢",
-                    text="歷史股價查詢"
-                )
-            ]
+    try:
+        message = TemplateSendMessage(
+            alt_text='基本股票功能',
+            template=ButtonsTemplate(
+                text='請選擇以下功能',
+                actions=[
+                    MessageAction(
+                        label="查詢股票資訊",
+                        text="查詢股票資訊"
+                    ),
+                    MessageAction(
+                        label="歷史股價查詢",
+                        text="歷史股價查詢"
+                    )
+                ]
+            )
         )
-    )
-    return message
+        return message
+    except Exception as e:
+        logger.error(f"Error creating template: {str(e)}")
+        return None
+
 
 def buttons_message2():
     message = TemplateSendMessage(
