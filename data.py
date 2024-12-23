@@ -1,5 +1,6 @@
 import requests, re
-from linebot import TextMessage
+from linebot.models import TextMessage
+
 
 def get_stock_data(id, amount, duration):
     url = 'https://backtest-kk2m.onrender.com/one_stock'
