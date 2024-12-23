@@ -1,5 +1,5 @@
 import requests
-from linebot.v3.messaging import TextMessage
+from linebot.models import TextMessage
 
 class CnyesNewsSpider:
     def get_latest_news(self, pages=10, limit=10):

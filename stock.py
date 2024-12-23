@@ -1,5 +1,5 @@
 import twstock
-from linebot.v3.messaging import TextMessage
+from linebot.models import TextMessage
 
 def get_stock_price(stock_code):
     stock = twstock.realtime.get(stock_code)
