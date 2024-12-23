@@ -1,4 +1,4 @@
-line-bot-sdk
+linebot.v3
 flask
 gunicorn
 python-dotenv
