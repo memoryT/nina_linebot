@@ -121,6 +121,20 @@ def handle_regular_message(event, msg: str, user_id: str):
         logger.error(f"Error in handle_regular_message: {str(e)}")
         send_message(event.reply_token, "請求時發生錯誤，請稍後再試。")
 
+def send_template(reply_token: str, template):
+    if template is None:
+        logger.error("The template is empty or None.")
+        send_message(reply_token, "發生錯誤，請稍後再試。")
+        return
+
+    try:
+        line_bot_api.reply_message(
+            reply_token,
+            template
+        )
+    except Exception as e:
+        logger.error(f"Error sending template: {str(e)}")
+        send_message(reply_token, "處理模板時發生錯誤，請稍後再試。")
 
 def handle_keywords_input(event, msg: str, user_id: str):
     # 假設輸入格式為 "關鍵字1,關鍵字2"
@@ -140,6 +154,7 @@ def handle_keywords_input(event, msg: str, user_id: str):
         logger.error(f"Error handling keywords input: {str(e)}")
         send_message(event.reply_token, "處理關鍵字時發生錯誤，請稍後再試。")
         
+
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
