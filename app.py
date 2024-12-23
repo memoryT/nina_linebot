@@ -34,18 +34,56 @@ line_bot_api = LineBotApi(channel_access_token)
 handler = WebhookHandler(channel_secret)
 handler = WebhookHandler(channel_secret)
 
+from flask import Flask, request, abort
+from dotenv import load_dotenv
+import os
+import logging
+from linebot import WebhookHandler, LineBotApi
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage
+)
+
+# 自定義功能模組（請確保這些模組存在且可正常運行）
+from data import *
+from message import *
+from news import *
+from Function import *
+from stock import *
+
+# 加載環境變數
+load_dotenv()
+
+# 初始化 Flask 應用
+app = Flask(__name__)
+
+# 從環境變數中讀取 LINE Bot 資訊
+channel_access_token = os.getenv('channel_access_token')
+channel_secret = os.getenv('channel_secret')
+port = int(os.getenv('PORT', 5000))
+
+# 初始化 LINE Bot API 和 WebhookHandler
+line_bot_api = LineBotApi(channel_access_token)
+handler = WebhookHandler(channel_secret)
+
+# 使用者狀態記錄
 user_states = {}
 
+# 路由設定
 @app.route("/")
 def home():
     return "Webhook Running!!!"
 
 @app.route("/callback", methods=['POST'])
 def callback():
+    # 獲取簽名
     signature = request.headers.get('X-Line-Signature')
+
+    # 獲取請求的正文
     body = request.get_data(as_text=True)
     app.logger.info("Request body: " + body)
 
+    # 驗證簽名並處理事件
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -54,31 +92,40 @@ def callback():
 
     return 'OK'
 
-@handler.add(MessageEvent, message=TextMessageContent)
+# 處理文字訊息事件
+@handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    line_bot_api = MessagingApi(ApiClient(configuration))  # Use MessagingApi directly with ApiClient
     user_id = event.source.user_id
     msg = event.message.text.strip()
     logging.info(f"Received message: {msg} from user: {user_id} with reply token: {event.reply_token}")
 
     try:
+        # 根據使用者狀態進行處理
         if user_id in user_states and user_states[user_id] == 'waiting_for_keywords':
-            handle_keywords_input(line_bot_api, event, msg, user_id)
+            handle_keywords_input(event, msg, user_id)
         elif user_id in user_states and user_states[user_id] == 'waiting_for_stock':
             result2 = create_stock_message(msg)
-            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[result2]))
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=result2)
+            )
             user_states[user_id] = None
         elif user_id in user_states and user_states[user_id] == 'waiting_for_backtest':
             result1 = backtest(msg)
             formatted_result = format_backtest_result(result1)
-            line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=formatted_result)]))
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=formatted_result)
+            )
             user_states[user_id] = None
         else:
-            handle_regular_message(line_bot_api, event, msg, user_id)
+            handle_regular_message(event, msg, user_id)
     except Exception as e:
         logging.error(f"Error handling webhook: {e}")
-        error_message = TextMessage(text="發生錯誤，請稍後再試。")
-        line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[error_message]))
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="發生錯誤，請稍後再試。")
+        )
         user_states[user_id] = None
 
 def handle_keywords_input(line_bot_api, event, msg, user_id):
