@@ -1,4 +1,4 @@
-from linebot import *
+from linebot.models import TemplateMessage, CarouselTemplate, CarouselColumn, MessageAction, URIAction
 
 # Function Definitions
 def buttons_message1():
@@ -38,6 +38,8 @@ def buttons_message2():
         )
     )
     return message
+
+
 
 def Carousel_Template():
     carousel_template_message = TemplateMessage(
@@ -80,13 +82,11 @@ def Carousel_Template():
                             label='回測',
                             text='回測'
                         ),
-                        # URIAction(
-                        #     label='定期定額 回測API',    
-                        #     uri='https://backtest-kk2m.onrender.com/one_stock?id=0056&amount=3000&date=5&duration=1'
-                        # )
                     ]
                 )
             ]
         )
     )
+    return carousel_template_message
+
     return carousel_template_message
