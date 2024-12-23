@@ -1,4 +1,4 @@
-line-bot-sdk==3.0.2
+line-bot-sdk
 flask
 gunicorn
 python-dotenv
