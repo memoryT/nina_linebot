@@ -98,10 +98,7 @@ def handle_state_based_input(event, msg: str, user_id: str):
     elif state == UserState.WAITING_FOR_STOCK.value:
         result = create_stock_message(msg)
         send_message(event.reply_token, result)
-    elif state == UserState.WAITING_FOR_BACKTEST.value:
-        result = backtest(msg)
-        formatted_result = format_backtest_result(result)
-        send_message(event.reply_token, formatted_result)
+  
     
     user_states.pop(user_id, None)
 
@@ -120,9 +117,6 @@ def handle_regular_message(event, msg: str, user_id: str):
         elif '查詢即時開盤價跟收盤價' in msg:
             send_message(event.reply_token, "請輸入股票代號:")
             user_states[user_id] = UserState.WAITING_FOR_STOCK.value
-        elif '回測' in msg:
-            send_message(event.reply_token, "請問要回測哪一支,定期定額多少,幾年(請用半形逗號隔開):")
-            user_states[user_id] = UserState.WAITING_FOR_BACKTEST.value
     except Exception as e:
         logger.error(f"Error in handle_regular_message: {str(e)}")
         send_message(event.reply_token, "請求時發生錯誤，請稍後再試。")
