@@ -14,8 +14,7 @@ from typing import Dict
 from stock import *
 from csv import *
 import datetime as dt
-import numpy as np
-from bs4 import BeautifulSoup
+
 
 # Initialize Flask and logging
 app = Flask(__name__)
