@@ -1,33 +1,37 @@
 from flask import Flask, request, abort
 from dotenv import load_dotenv
-import logging
 import os
 from linebot import WebhookHandler, LineBotApi
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent)
+    MessageEvent, TextMessage, TextSendMessage, MemberJoinedEvent
+)
+
+# 自定義功能模組
 from data import *
 from message import *
 from news import *
 from Function import *
 from stock import *
 
-# Load environment variables
+# 加載環境變數
 load_dotenv()
 
+# 初始化 Flask 應用
 app = Flask(__name__)
 
-# Load environment variables
+# 從環境變數中讀取 LINE Bot 資訊
 channel_access_token = os.getenv('channel_access_token')
 channel_secret = os.getenv('channel_secret')
 port = int(os.getenv('PORT', 5000))
 
-# Debugging: Print the channel access token and channel secret
-print(f"Channel Access Token: {channel_access_token}")
-print(f"Channel Secret: {channel_secret}")
+# 驗證環境變數
+if not channel_access_token or not channel_secret:
+    raise ValueError("環境變數 'channel_access_token' 或 'channel_secret' 未正確配置！")
 
-# Get instance from linebot
-configuration = Configuration(access_token=channel_access_token)
+# 初始化 LINE Bot API 和 WebhookHandler
+line_bot_api = LineBotApi(channel_access_token)
+handler = WebhookHandler(channel_secret)
 handler = WebhookHandler(channel_secret)
 
 user_states = {}
