@@ -5,6 +5,7 @@ from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, 
     MemberJoinedEvent, TemplateSendMessage
 )
+from message import Carousel_Template
 from dotenv import load_dotenv
 import os
 import logging
