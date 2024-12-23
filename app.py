@@ -106,22 +106,49 @@ def handle_state_based_input(event, msg: str, user_id: str):
     user_states.pop(user_id, None)
 
 def handle_regular_message(event, msg: str, user_id: str):
-    if '財報' in msg or '基本股票功能' in msg:
-        send_template(event.reply_token, buttons_message1())
-    elif '換股' in msg:
-        send_template(event.reply_token, buttons_message2())
-    elif '目錄' in msg:
-        carousel = Carousel_Template()
-        send_template(event.reply_token, carousel)
-    elif '新聞' in msg:
-        send_message(event.reply_token, "請輸入關鍵字，用半形逗號分隔:")
-        user_states[user_id] = UserState.WAITING_FOR_KEYWORDS.value
-    elif '查詢即時開盤價跟收盤價' in msg:
-        send_message(event.reply_token, "請輸入股票代號:")
-        user_states[user_id] = UserState.WAITING_FOR_STOCK.value
-    elif '回測' in msg:
-        send_message(event.reply_token, "請問要回測哪一支,定期定額多少,幾年(請用半形逗號隔開):")
-        user_states[user_id] = UserState.WAITING_FOR_BACKTEST.value
+    try:
+        if '財報' in msg or '基本股票功能' in msg:
+            send_template(event.reply_token, buttons_message1())
+        elif '換股' in msg:
+            send_template(event.reply_token, buttons_message2())
+        elif '目錄' in msg:
+            carousel = Carousel_Template()
+            send_template(event.reply_token, carousel)
+        elif '新聞' in msg:
+            send_message(event.reply_token, "請輸入關鍵字，用半形逗號分隔:")
+            user_states[user_id] = UserState.WAITING_FOR_KEYWORDS.value
+        elif '查詢即時開盤價跟收盤價' in msg:
+            send_message(event.reply_token, "請輸入股票代號:")
+            user_states[user_id] = UserState.WAITING_FOR_STOCK.value
+        elif '回測' in msg:
+            send_message(event.reply_token, "請問要回測哪一支,定期定額多少,幾年(請用半形逗號隔開):")
+            user_states[user_id] = UserState.WAITING_FOR_BACKTEST.value
+    except Exception as e:
+        logger.error(f"Error in handle_regular_message: {str(e)}")
+        send_message(event.reply_token, "請求時發生錯誤，請稍後再試。")
+
+def handle_keywords_input(event, msg: str, user_id: str):
+    # 假設輸入格式為 "關鍵字1,關鍵字2"
+    keywords = msg.split(',')
+    # 去除空格
+    keywords = [keyword.strip() for keyword in keywords]
+    
+    if not keywords:
+        send_message(event.reply_token, "請輸入有效的關鍵字，用半形逗號分隔。")
+        return
+
+    try:
+        # 假設您有一個函數 `search_news_by_keywords` 查詢新聞
+        news_results = search_news_by_keywords(keywords)
+        
+        if not news_results:
+            send_message(event.reply_token, "找不到相關的新聞。")
+        else:
+            formatted_news = format_news_results(news_results)
+            send_message(event.reply_token, formatted_news)
+    except Exception as e:
+        logger.error(f"Error handling keywords input: {str(e)}")
+        send_message(event.reply_token, "處理關鍵字時發生錯誤，請稍後再試。")
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
